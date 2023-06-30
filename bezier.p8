@@ -117,12 +117,12 @@ function init_cubic_bezier_demo()
   }
 end
 
-function draw_t_panel(t_val, active)
+function cbds_draw_t_panel(t_val, active)
   local col = active and 3 or 6
   print("t: " .. t_val, 0, 120, col)
 end
 
-function draw_help(cur_mode)
+function cbds_draw_help(cur_mode)
   if cur_mode == 0 then
     print("⬅️➡️⬆️⬇️ move point", 52, 108, 6)
     print("🅾️ change point", 52, 114, 6)
@@ -139,9 +139,9 @@ function draw_cubic_bezier_demo()
   rectfill(0, 0, 127, 127, 1)
   local curve = calc_cub_bezier(cbds.bez, cbds.set_increment_value, cbds.set_t_value)
 
-  draw_t_panel(cbds.set_t_value, cbds.mode == 1)
+  cbds_draw_t_panel(cbds.set_t_value, cbds.mode == 1)
 
-  draw_help(cbds.mode)
+  cbds_draw_help(cbds.mode)
 
   draw_points(curve.points, 12)
   draw_control_points(cbds.bez, cbds.mode == 0 and cbds.selected_control_point or 5)
@@ -213,6 +213,121 @@ function update_cubic_bezier_demo()
 end
 
 -->8
+-- b-spline demo
+bsds = {} -- b-spline demo state
+
+function init_b_spline_demo()
+  bsds = {
+    bez = cub_bezier(
+      point(25, 75),
+      point(25, 25),
+      point(75, 25),
+      point(75, 75)
+    ),
+    set_increment_value = 0.001,
+    selected_control_point = 0,
+    t_adjust_incr = 0.01,
+    set_t_value = 1,
+    mode = 0,
+  }
+end
+
+function bsds_draw_t_panel(t_val, active)
+  local col = active and 3 or 6
+  print("t: " .. t_val, 0, 120, col)
+end
+
+function bsds_draw_help(cur_mode)
+  if cur_mode == 0 then
+    print("⬅️➡️⬆️⬇️ move point", 52, 108, 5)
+    print("🅾️ change point", 52, 114, 5)
+    print("❎ adjust t", 52, 120, 5)
+  elseif cur_mode == 1 then
+    print("⬅️➡️ -/+" .. bsds.set_increment_value, 62, 102, 5)
+    print("⬇️⬆️ -/+" .. bsds.set_increment_value * 5, 62, 108, 5)
+    print("❎ adjust points", 62, 114, 5)
+    print("🅾️ main menu", 62, 120, 5)
+  end
+end
+
+function draw_b_spline_demo()
+  rectfill(0, 0, 127, 127, 1)
+  local curve = calc_cub_bezier(bsds.bez, bsds.set_increment_value, bsds.set_t_value)
+
+  bsds_draw_t_panel(bsds.set_t_value, bsds.mode == 1)
+
+  bsds_draw_help(bsds.mode)
+
+  draw_points(curve.points, 10)
+  draw_control_points(bsds.bez, bsds.mode == 0 and bsds.selected_control_point or 5)
+end
+
+function update_b_spline_demo()
+  if btnp(5) then
+    bsds.mode = (bsds.mode + 1) % 2
+  end
+
+  if bsds.mode == 0 then
+      if btnp(4) then
+        bsds.selected_control_point = (bsds.selected_control_point + 1) % 4
+      end
+
+      local mincr = 0.5
+
+      local points = {
+        bsds.bez.p0,
+        bsds.bez.p1,
+        bsds.bez.p2,
+        bsds.bez.p3,
+      }
+
+      local point = points[bsds.selected_control_point + 1]
+
+      if btn(0) then
+        point.x -= mincr
+      end
+
+      if btn(1) then
+        point.x += mincr
+      end
+
+      if btn(2) then
+        point.y -= mincr
+      end
+
+      if btn(3) then
+        point.y += mincr
+      end
+    elseif bsds.mode == 1 then
+        if btn(0) then
+          bsds.set_t_value -= bsds.t_adjust_incr
+        end
+
+        if btn(1) then
+          bsds.set_t_value += bsds.t_adjust_incr
+        end
+
+        if btn(3) then
+          bsds.set_t_value -= bsds.t_adjust_incr * 5
+        end
+
+        if btn(2) then
+          bsds.set_t_value += bsds.t_adjust_incr * 5
+        end
+
+        if btn(4) then
+          selected_program = 1
+        end
+
+        if bsds.set_t_value < 0 then
+          bsds.set_t_value = 0
+        elseif bsds.set_t_value > 1 then
+          bsds.set_t_value = 1
+        end
+  end
+end
+
+-->8
 -- main menu
 
 mms = {} -- main menu state
@@ -224,6 +339,7 @@ function init_main_menu()
     options = {
       "menu",
       "cubic bezier curve",
+      "b-spline (stub!)",
     },
   }
 end
@@ -264,16 +380,19 @@ last_update_program = -1
 init_funcs = {
   init_main_menu,
   init_cubic_bezier_demo,
+  init_b_spline_demo,
 }
 
 draw_funcs = {
   draw_main_menu,
   draw_cubic_bezier_demo,
+  draw_b_spline_demo,
 }
 
 update_funcs = {
   update_main_menu,
   update_cubic_bezier_demo,
+  update_b_spline_demo,
 }
 
 function _draw()
