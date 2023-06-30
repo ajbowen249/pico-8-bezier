@@ -1,8 +1,7 @@
 pico-8 cartridge // http://www.pico-8.com
 version 34
 __lua__
-set_increment_value = 0.001
-
+-- math functions
 function lerp(v0, v1, t)
   return (1 - t) * v0 + t * v1
 end
@@ -18,6 +17,8 @@ function lerp_2d(p0, p1, t)
   )
 end
 
+-->8
+-- bezier functions
 function cub_bezier(p0, p1, p2, p3)
   return {
     p0 = p0,
@@ -69,7 +70,8 @@ function calc_cub_bezier(curve, incr, to_t)
   return state
 end
 
-
+-->8
+-- general draw functions
 function draw_points(points, col)
   for _, point in ipairs(points) do
     pset(point.x, point.y, col)
@@ -91,6 +93,9 @@ function draw_control_points(curve, selected_index)
   draw_control_point(curve.p3, selected_index == 3)
 end
 
+-->8
+-- ui draw functions
+
 function draw_t_panel(t_val, active)
   local col = active and 3 or 6
   print("t: " .. t_val, 0, 120, col)
@@ -108,6 +113,8 @@ function draw_help(cur_mode)
   end
 end
 
+-->8
+-- program logic
 bez = cub_bezier(
   point(25, 75),
   point(25, 25),
@@ -115,11 +122,10 @@ bez = cub_bezier(
   point(75, 75)
 )
 
+set_increment_value = 0.001
 selected_control_point = 0
-
-t_incr = 0.01
+t_adjust_incr = 0.01
 set_t_value = 1
-
 mode = 0
 
 function _draw()
@@ -172,19 +178,19 @@ function _update()
       end
     elseif mode == 1 then
         if btn(0) then
-          set_t_value -= t_incr
+          set_t_value -= t_adjust_incr
         end
 
         if btn(1) then
-          set_t_value += t_incr
+          set_t_value += t_adjust_incr
         end
 
         if btn(3) then
-          set_t_value -= t_incr * 5
+          set_t_value -= t_adjust_incr * 5
         end
 
         if btn(2) then
-          set_t_value += t_incr * 5
+          set_t_value += t_adjust_incr * 5
         end
 
         if set_t_value < 0 then
