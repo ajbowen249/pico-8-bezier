@@ -94,7 +94,20 @@ function draw_control_points(curve, selected_index)
 end
 
 -->8
--- ui draw functions
+-- cubic bezier curve program logic
+cbds = { -- cubic bezier demo state
+  bez = cub_bezier(
+    point(25, 75),
+    point(25, 25),
+    point(75, 25),
+    point(75, 75)
+  ),
+  set_increment_value = 0.001,
+  selected_control_point = 0,
+  t_adjust_incr = 0.01,
+  set_t_value = 1,
+  mode = 0,
+}
 
 function draw_t_panel(t_val, active)
   local col = active and 3 or 6
@@ -107,59 +120,44 @@ function draw_help(cur_mode)
     print("🅾️ change point", 52, 114, 6)
     print("❎ adjust t", 52, 120, 6)
   elseif cur_mode == 1 then
-    print("⬅️➡️ -/+" .. set_increment_value, 62, 108, 6)
-    print("⬇️⬆️ -/+" .. set_increment_value * 5, 62, 114, 6)
+    print("⬅️➡️ -/+" .. cbds.set_increment_value, 62, 108, 6)
+    print("⬇️⬆️ -/+" .. cbds.set_increment_value * 5, 62, 114, 6)
     print("❎ adjust points", 62, 120, 6)
   end
 end
 
--->8
--- program logic
-bez = cub_bezier(
-  point(25, 75),
-  point(25, 25),
-  point(75, 25),
-  point(75, 75)
-)
-
-set_increment_value = 0.001
-selected_control_point = 0
-t_adjust_incr = 0.01
-set_t_value = 1
-mode = 0
-
-function _draw()
+function draw_cubic_bezier_demo()
   rectfill(0, 0, 127, 127, 1)
-  local curve = calc_cub_bezier(bez, set_increment_value, set_t_value)
+  local curve = calc_cub_bezier(cbds.bez, cbds.set_increment_value, cbds.set_t_value)
 
-  draw_t_panel(set_t_value, mode == 1)
+  draw_t_panel(cbds.set_t_value, cbds.mode == 1)
 
-  draw_help(mode)
+  draw_help(cbds.mode)
 
   draw_points(curve.points, 12)
-  draw_control_points(bez, mode == 0 and selected_control_point or 5)
+  draw_control_points(cbds.bez, cbds.mode == 0 and cbds.selected_control_point or 5)
 end
 
-function _update()
+function update_cubic_bezier_demo()
   if btnp(5) then
-    mode = (mode + 1) % 2
+    cbds.mode = (cbds.mode + 1) % 2
   end
 
-  if mode == 0 then
+  if cbds.mode == 0 then
       if btnp(4) then
-        selected_control_point = (selected_control_point + 1) % 4
+        cbds.selected_control_point = (cbds.selected_control_point + 1) % 4
       end
 
       local mincr = 0.5
 
       local points = {
-        bez.p0,
-        bez.p1,
-        bez.p2,
-        bez.p3,
+        cbds.bez.p0,
+        cbds.bez.p1,
+        cbds.bez.p2,
+        cbds.bez.p3,
       }
 
-      local point = points[selected_control_point + 1]
+      local point = points[cbds.selected_control_point + 1]
 
       if btn(0) then
         point.x -= mincr
@@ -176,31 +174,47 @@ function _update()
       if btn(3) then
         point.y += mincr
       end
-    elseif mode == 1 then
+    elseif cbds.mode == 1 then
         if btn(0) then
-          set_t_value -= t_adjust_incr
+          cbds.set_t_value -= cbds.t_adjust_incr
         end
 
         if btn(1) then
-          set_t_value += t_adjust_incr
+          cbds.set_t_value += cbds.t_adjust_incr
         end
 
         if btn(3) then
-          set_t_value -= t_adjust_incr * 5
+          cbds.set_t_value -= cbds.t_adjust_incr * 5
         end
 
         if btn(2) then
-          set_t_value += t_adjust_incr * 5
+          cbds.set_t_value += cbds.t_adjust_incr * 5
         end
 
-        if set_t_value < 0 then
-          set_t_value = 0
-        elseif set_t_value > 1 then
-          set_t_value = 1
+        if cbds.set_t_value < 0 then
+          cbds.set_t_value = 0
+        elseif cbds.set_t_value > 1 then
+          cbds.set_t_value = 1
         end
   end
 end
 
+-->8
+-- main program logic
+
+selected_pane = 0
+
+function _draw()
+  if selected_pane == 0 then
+    draw_cubic_bezier_demo()
+  end
+end
+
+function _update()
+  if selected_pane == 0 then
+    update_cubic_bezier_demo()
+  end
+end
 
 __gfx__
 00000000660606603303033000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
