@@ -367,7 +367,7 @@ end
 function bsds_draw_help(cur_mode)
   if cur_mode == 0 then
     print("⬅️➡️⬆️⬇️ move point", 52, 102, 5)
-    print("🅾️ change point", 52, 108, 5)
+    print("p2⬅️➡️ change point", 52, 108, 5)
     print("❎ adjust t", 52, 114, 5)
     print("p2❎ add segment", 52, 120, 5)
   elseif cur_mode == 1 then
@@ -402,7 +402,7 @@ function update_bez_spline_demo()
   end
 
   if bsds.mode == 0 then
-      if btnp(4) then
+      if btnp(1, 1) then
         bsds.selected_control_point = bsds.selected_control_point + 1
         if bsds.selected_control_point > 4 then
           bsds.selected_control_point = 1
@@ -411,6 +411,16 @@ function update_bez_spline_demo()
 
         if bsds.selected_curve > #bsds.spline.curves then
           bsds.selected_curve = 1
+        end
+      elseif btnp(0, 1) then
+        bsds.selected_control_point = bsds.selected_control_point - 1
+        if bsds.selected_control_point < 0 then
+          bsds.selected_control_point = 1
+          bsds.selected_curve = bsds.selected_curve - 1
+        end
+
+        if bsds.selected_curve < 1 then
+          bsds.selected_curve = #bsds.spline.curves
         end
       end
 
