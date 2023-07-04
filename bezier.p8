@@ -110,6 +110,10 @@ function bezier_spline(...)
   }
 end
 
+function add_bez_spline_segment(spline, curve)
+  spline.curves[#spline.curves + 1] = curve
+end
+
 function calc_bez_spline_state(spline)
   return {
     spline = spline,
@@ -144,8 +148,8 @@ function bez_spline_to_string(spline)
 
   for curve_i,curve in ipairs(spline.curves) do
     for i = 1, 4, 1 do
-      local point = get_bez_point(curve, i)
-      str = str .. point.x .. "," .. point.y
+      local p = get_bez_point(curve, i)
+      str = str .. p.x .. "," .. p.y
       if i < 4 then
         str = str .. ","
       end
@@ -187,8 +191,8 @@ end
 -->8
 -- general draw functions
 function draw_points(points, col)
-  for _, point in ipairs(points) do
-    pset(point.x, point.y, col)
+  for _, p in ipairs(points) do
+    pset(p.x, p.y, col)
   end
 end
 
@@ -200,20 +204,20 @@ end
 
 function draw_vector_line(points_groups, col)
   for _, group in ipairs(points_groups) do
-    for i, point in ipairs(group.points) do
+    for i, p in ipairs(group.points) do
       if i < #group.points then
         local next = group.points[i + 1]
-        line(point.x, point.y, next.x, next.y, col)
+        line(p.x, p.y, next.x, next.y, col)
       end
     end
   end
 end
 
-function draw_control_point(point, selected)
+function draw_control_point(p, selected)
   spr(
     selected and 2 or 1,
-    point.x - 3,
-    point.y - 3
+    p.x - 3,
+    p.y - 3
   )
 end
 
@@ -293,22 +297,22 @@ function update_cubic_bezier_demo()
         cbds.bez.p3,
       }
 
-      local point = points[cbds.selected_control_point + 1]
+      local p = points[cbds.selected_control_point + 1]
 
       if btn(0) then
-        point.x -= mincr
+        p.x -= mincr
       end
 
       if btn(1) then
-        point.x += mincr
+        p.x += mincr
       end
 
       if btn(2) then
-        point.y -= mincr
+        p.y -= mincr
       end
 
       if btn(3) then
-        point.y += mincr
+        p.y += mincr
       end
     elseif cbds.mode == 1 then
         if btn(0) then
@@ -362,9 +366,10 @@ end
 
 function bsds_draw_help(cur_mode)
   if cur_mode == 0 then
-    print("⬅️➡️⬆️⬇️ move point", 52, 108, 5)
-    print("🅾️ change point", 52, 114, 5)
-    print("❎ adjust t", 52, 120, 5)
+    print("⬅️➡️⬆️⬇️ move point", 52, 102, 5)
+    print("🅾️ change point", 52, 108, 5)
+    print("❎ adjust t", 52, 114, 5)
+    print("p2❎ add segment", 52, 120, 5)
   elseif cur_mode == 1 then
     print("⬅️➡️ -/+" .. bsds.set_increment_value, 62, 96, 5)
     print("⬇️⬆️ -/+" .. bsds.set_increment_value * 5, 62, 102, 5)
@@ -413,7 +418,7 @@ function update_bez_spline_demo()
       local curve_idx = bsds.selected_curve
       local point_idx = bsds.selected_control_point
 
-      local point = get_bez_point(bsds.spline.curves[bsds.selected_curve], point_idx)
+      local editing_point = get_bez_point(bsds.spline.curves[bsds.selected_curve], point_idx)
       local impact_type = nil
       local impacted_points = {}
       if point_idx == 1 then
@@ -449,7 +454,7 @@ function update_bez_spline_demo()
       end
 
       if btn(0) then
-        point.x -= mincr
+        editing_point.x -= mincr
 
         map(impacted_points, function(impacted_point)
           if impact_type == point_pin then
@@ -461,7 +466,7 @@ function update_bez_spline_demo()
       end
 
       if btn(1) then
-        point.x += mincr
+        editing_point.x += mincr
 
         map(impacted_points, function(impacted_point)
           if impact_type == point_pin then
@@ -473,7 +478,7 @@ function update_bez_spline_demo()
       end
 
       if btn(2) then
-        point.y -= mincr
+        editing_point.y -= mincr
 
         map(impacted_points, function(impacted_point)
           if impact_type == point_pin then
@@ -485,7 +490,7 @@ function update_bez_spline_demo()
       end
 
       if btn(3) then
-        point.y += mincr
+        editing_point.y += mincr
 
         map(impacted_points, function(impacted_point)
           if impact_type == point_pin then
@@ -494,6 +499,23 @@ function update_bez_spline_demo()
             impacted_point.y -= mincr
           end
         end)
+      end
+
+      if btnp(5, 1) then
+        local end_point = get_bez_point(bsds.spline.curves[#bsds.spline.curves], 4)
+        local end_control = get_bez_point(bsds.spline.curves[#bsds.spline.curves], 3)
+        local rise = end_point.y - end_control.y
+        local run = end_point.x - end_control.x
+        local next_control = point(end_point.x + run, end_point.y + rise)
+        add_bez_spline_segment(bsds.spline, cub_bezier(
+          point(end_point.x, end_point.y),
+          point(next_control.x, next_control.y),
+          point(next_control.x + (run / 2), next_control.y + (rise / 2)),
+          point(next_control.x + run, next_control.y + rise)
+        ))
+
+        bsds.selected_curve = #bsds.spline.curves
+        bsds.selected_control_point = 1
       end
     elseif bsds.mode == 1 then
         if btn(0) then
