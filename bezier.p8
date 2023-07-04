@@ -3,6 +3,8 @@ version 34
 __lua__
 -- globals
 selected_program = 1
+point_pin = 0
+point_mirror = 1
 
 -->8
 -- library functions
@@ -42,6 +44,19 @@ function cub_bezier(p0, p1, p2, p3)
     p2 = p2,
     p3 = p3,
   };
+end
+
+-- ew, should rework bezier curve into point array...
+function get_bez_point(curve, index)
+  if index == 1 then
+    return curve.p0
+  elseif index == 2 then
+    return curve.p1
+  elseif index == 3 then
+    return curve.p2
+  else
+    return curve.p3
+  end
 end
 
 function cub_bezier_calc_state(curve)
@@ -296,7 +311,8 @@ function init_bez_spline_demo()
       )
     ),
     set_increment_value = 0.05,
-    selected_control_point = 0,
+    selected_control_point = 1,
+    selected_curve = 1,
     t_adjust_incr = 0.01,
     set_t_value = 1,
     mode = 0,
@@ -330,7 +346,7 @@ function draw_bez_spline_demo()
   bsds_draw_help(bsds.mode)
 
   draw_vector_line(spline.curves, 10)
-  draw_control_points(bsds.spline.curves[1], bsds.mode == 0 and bsds.selected_control_point or 5)
+  draw_control_points(bsds.spline.curves[bsds.selected_curve], bsds.mode == 0 and (bsds.selected_control_point - 1) or 5)
 end
 
 function update_bez_spline_demo()
@@ -340,34 +356,84 @@ function update_bez_spline_demo()
 
   if bsds.mode == 0 then
       if btnp(4) then
-        bsds.selected_control_point = (bsds.selected_control_point + 1) % 4
+        bsds.selected_control_point = bsds.selected_control_point + 1
+        if bsds.selected_control_point > 4 then
+          bsds.selected_control_point = 1
+          bsds.selected_curve = bsds.selected_curve + 1
+        end
+
+        if bsds.selected_curve > #bsds.spline.curves then
+          bsds.selected_curve = 1
+        end
       end
 
       local mincr = 0.5
+      local curve_idx = bsds.selected_curve
+      local point_idx = bsds.selected_control_point
 
-      local points = {
-        bsds.spline.curves[1].p0,
-        bsds.spline.curves[1].p1,
-        bsds.spline.curves[1].p2,
-        bsds.spline.curves[1].p3,
-      }
+      local point = get_bez_point(bsds.spline.curves[bsds.selected_curve], point_idx)
+      local impact_type = nil
+      local impacted_points = nil
+      if point_idx == 1 then
+        impact_type = point_pin
+        impacted_points = {
+          get_bez_point(bsds.spline.curves[curve_idx], 2),
+        }
 
-      local point = points[bsds.selected_control_point + 1]
+        if curve_idx > 1 then
+          impacted_points[#impacted_points + 1] = get_bez_point(bsds.spline.curves[curve_idx - 1], 4)
+          impacted_points[#impacted_points + 1] = get_bez_point(bsds.spline.curves[curve_idx - 1], 3)
+        end
+      elseif point_idx == 4 then
+        impact_type = point_pin
+        impacted_points = {
+          get_bez_point(bsds.spline.curves[curve_idx], 3),
+        }
+
+        if curve_idx < #bsds.spline.curves then
+          impacted_points[#impacted_points + 1] = get_bez_point(bsds.spline.curves[curve_idx + 1], 1)
+          impacted_points[#impacted_points + 1] = get_bez_point(bsds.spline.curves[curve_idx + 1], 2)
+        end
+      end
 
       if btn(0) then
         point.x -= mincr
+
+        if impact_type == point_pin then
+          map(impacted_points, function(impacted_point)
+            impacted_point.x -= mincr
+          end)
+        end
       end
 
       if btn(1) then
         point.x += mincr
+
+        if impact_type == point_pin then
+          map(impacted_points, function(impacted_point)
+            impacted_point.x += mincr
+          end)
+        end
       end
 
       if btn(2) then
         point.y -= mincr
+
+        if impact_type == point_pin then
+          map(impacted_points, function(impacted_point)
+            impacted_point.y -= mincr
+          end)
+        end
       end
 
       if btn(3) then
         point.y += mincr
+
+        if impact_type == point_pin then
+          map(impacted_points, function(impacted_point)
+            impacted_point.y += mincr
+          end)
+        end
       end
     elseif bsds.mode == 1 then
         if btn(0) then
