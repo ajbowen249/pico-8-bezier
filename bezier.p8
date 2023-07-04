@@ -345,7 +345,7 @@ bsds = {} -- bezier spline demo state
 
 function init_bez_spline_demo()
   bsds = {
-    spline = bez_spline_from_string("2,5,20,30,20,30,50,55,50,55,50,80,50,80,20,115,20"),
+    spline = bez_spline_from_string("2, 5,20, 20,20, 20,35, 40,35,    40,35, 60,35, 60,20, 80,20"),
     set_increment_value = 0.05,
     selected_control_point = 1,
     selected_curve = 1,
