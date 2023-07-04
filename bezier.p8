@@ -348,15 +348,16 @@ end
 bsds = {} -- bezier spline demo state
 
 function init_bez_spline_demo()
-  bsds = {
-    spline = bez_spline_from_string("2, 5,20, 20,20, 20,35, 40,35,    40,35, 60,35, 60,20, 80,20"),
-    set_increment_value = 0.05,
-    selected_control_point = 1,
-    selected_curve = 1,
-    t_adjust_incr = 0.01,
-    set_t_value = 1,
-    mode = 0,
-  }
+  bsds.set_increment_value = 0.05
+  bsds.selected_control_point = 1
+  bsds.selected_curve = 1
+  bsds.t_adjust_incr = 0.01
+  bsds.set_t_value = 1
+  bsds.mode = 0
+
+  if bsds.spline == nil then
+    bsds.spline = bez_spline_from_string("2, 5,20, 20,20, 20,35, 40,35,    40,35, 60,35, 60,20, 80,20")
+  end
 end
 
 function bsds_draw_t_panel(t_val, active)
