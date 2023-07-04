@@ -136,6 +136,31 @@ function calc_bez_spline(spline, incr, to_t)
 end
 
 -->8
+-- serlialization functions
+function bez_spline_to_string(spline)
+  local str = ""
+  str = "test_fake_spline"
+  return str
+end
+
+function bez_spline_from_string(str)
+  return bezier_spline(
+      cub_bezier(
+        point(5, 20),
+        point(30, 20),
+        point(30, 50),
+        point(55, 50)
+      ),
+      cub_bezier(
+        point(55, 50),
+        point(80, 50),
+        point(80, 20),
+        point(115, 20)
+      )
+    )
+end
+
+-->8
 -- general draw functions
 function draw_points(points, col)
   for _, point in ipairs(points) do
@@ -330,10 +355,11 @@ function bsds_draw_help(cur_mode)
     print("🅾️ change point", 52, 114, 5)
     print("❎ adjust t", 52, 120, 5)
   elseif cur_mode == 1 then
-    print("⬅️➡️ -/+" .. bsds.set_increment_value, 62, 102, 5)
-    print("⬇️⬆️ -/+" .. bsds.set_increment_value * 5, 62, 108, 5)
-    print("❎ adjust points", 62, 114, 5)
-    print("🅾️ main menu", 62, 120, 5)
+    print("⬅️➡️ -/+" .. bsds.set_increment_value, 62, 96, 5)
+    print("⬇️⬆️ -/+" .. bsds.set_increment_value * 5, 62, 102, 5)
+    print("❎ adjust points", 62, 108, 5)
+    print("🅾️ main menu", 62, 114, 5)
+    print("p2🅾️/❎ p2 copy/paste", 42, 120, 5)
   end
 end
 
@@ -483,6 +509,14 @@ function update_bez_spline_demo()
           bsds.set_t_value = 0
         elseif bsds.set_t_value > 1 then
           bsds.set_t_value = 1
+        end
+
+        if btnp(4, 1) then
+          printh(bez_spline_to_string(bsds.spline), "@clip")
+        end
+
+        if btnp(5, 1) then
+          bsds.spline = bez_spline_from_string(stat(4))
         end
   end
 end
