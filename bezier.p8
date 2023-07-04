@@ -545,7 +545,7 @@ function update_bez_spline_demo()
           bsds.set_t_value += bsds.t_adjust_incr * 5
         end
 
-        if btn(4) then
+        if btnp(4) then
           selected_program = 1
         end
 
@@ -566,6 +566,57 @@ function update_bez_spline_demo()
 end
 
 -->8
+-- drawing playground 1
+
+-- lumpy circle for testing
+-- 4,11.5,56.5,7.5,49,5,6.5,40,6.5,40,6.5,75,6.5,112,22,100,52.5,100,52.5,88,83,73.5,98.25,48.5,92,48.5,92,23.5,85.75,13,78.625,9.5,63.5
+dp1s = {} -- drawing playground 1 state
+function init_draw_playground_1()
+  if bsds.spline == nil then
+    init_bez_spline_demo()
+  end
+
+  dp1s.spline = bsds.spline
+  dp1s.incr = 0.1
+  dp1s.c_x = 0
+  dp1s.c_y = 0
+end
+
+function draw_draw_playground_1()
+  rectfill(0, 0, 127, 127, 1)
+  camera(dp1s.c_x, dp1s.c_y)
+  local spline = calc_bez_spline(dp1s.spline, dp1s.incr, 1)
+
+  draw_vector_line(spline.curves, 10)
+
+  print(stat(7), dp1s.c_x, dp1s.c_y, 11)
+end
+
+function update_draw_playground_1()
+  local camera_move = 1
+
+  if btn(0) then
+    dp1s.c_x -= camera_move
+  end
+
+  if btn(1) then
+    dp1s.c_x += camera_move
+  end
+
+  if btn(2) then
+    dp1s.c_y -= camera_move
+  end
+
+  if btn(3) then
+    dp1s.c_y += camera_move
+  end
+
+  if btnp(4) then
+    selected_program = 1
+  end
+end
+
+-->8
 -- main menu
 
 mms = {} -- main menu state
@@ -578,6 +629,7 @@ function init_main_menu()
       "menu",
       "cubic bezier curve",
       "bezier spline",
+      "draw playground",
     },
   }
 end
@@ -619,18 +671,21 @@ init_funcs = {
   init_main_menu,
   init_cubic_bezier_demo,
   init_bez_spline_demo,
+  init_draw_playground_1,
 }
 
 draw_funcs = {
   draw_main_menu,
   draw_cubic_bezier_demo,
   draw_bez_spline_demo,
+  draw_draw_playground_1,
 }
 
 update_funcs = {
   update_main_menu,
   update_cubic_bezier_demo,
   update_bez_spline_demo,
+  update_draw_playground_1,
 }
 
 function _draw()
