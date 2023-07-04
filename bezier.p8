@@ -373,7 +373,7 @@ function update_bez_spline_demo()
 
       local point = get_bez_point(bsds.spline.curves[bsds.selected_curve], point_idx)
       local impact_type = nil
-      local impacted_points = nil
+      local impacted_points = {}
       if point_idx == 1 then
         impact_type = point_pin
         impacted_points = {
@@ -394,46 +394,64 @@ function update_bez_spline_demo()
           impacted_points[#impacted_points + 1] = get_bez_point(bsds.spline.curves[curve_idx + 1], 1)
           impacted_points[#impacted_points + 1] = get_bez_point(bsds.spline.curves[curve_idx + 1], 2)
         end
+      elseif point_idx == 2 and curve_idx > 1 then
+        impact_type = point_mirror
+        impacted_points = {
+          get_bez_point(bsds.spline.curves[curve_idx - 1], 3),
+        }
+      elseif point_idx == 3 and curve_idx < #bsds.spline.curves then
+        impact_type = point_mirror
+        impacted_points = {
+          get_bez_point(bsds.spline.curves[curve_idx + 1], 2),
+        }
       end
 
       if btn(0) then
         point.x -= mincr
 
-        if impact_type == point_pin then
-          map(impacted_points, function(impacted_point)
+        map(impacted_points, function(impacted_point)
+          if impact_type == point_pin then
             impacted_point.x -= mincr
-          end)
-        end
+          elseif impact_type == point_mirror then
+            impacted_point.x += mincr
+          end
+        end)
       end
 
       if btn(1) then
         point.x += mincr
 
-        if impact_type == point_pin then
-          map(impacted_points, function(impacted_point)
+        map(impacted_points, function(impacted_point)
+          if impact_type == point_pin then
             impacted_point.x += mincr
-          end)
-        end
+          elseif impact_type == point_mirror then
+            impacted_point.x -= mincr
+          end
+        end)
       end
 
       if btn(2) then
         point.y -= mincr
 
-        if impact_type == point_pin then
-          map(impacted_points, function(impacted_point)
+        map(impacted_points, function(impacted_point)
+          if impact_type == point_pin then
             impacted_point.y -= mincr
-          end)
-        end
+          elseif impact_type == point_mirror then
+            impacted_point.y += mincr
+          end
+        end)
       end
 
       if btn(3) then
         point.y += mincr
 
-        if impact_type == point_pin then
-          map(impacted_points, function(impacted_point)
+        map(impacted_points, function(impacted_point)
+          if impact_type == point_pin then
             impacted_point.y += mincr
-          end)
-        end
+          elseif impact_type == point_mirror then
+            impacted_point.y -= mincr
+          end
+        end)
       end
     elseif bsds.mode == 1 then
         if btn(0) then
