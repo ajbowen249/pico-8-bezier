@@ -5,6 +5,18 @@ __lua__
 selected_program = 1
 
 -->8
+-- library functions
+
+function map(array, func)
+  local out = {}
+  for i, v in ipairs(array) do
+    out[i] = func(v)
+  end
+
+  return out
+end
+
+-->8
 -- math functions
 function lerp(v0, v1, t)
   return (1 - t) * v0 + t * v1
@@ -32,7 +44,7 @@ function cub_bezier(p0, p1, p2, p3)
   };
 end
 
-function cub_bezier_state(curve)
+function cub_bezier_calc_state(curve)
   return {
     curve = curve,
     t = 0,
@@ -40,8 +52,7 @@ function cub_bezier_state(curve)
   }
 end
 
-function calc_cub_bezier(curve, incr, to_t)
-  local state = cub_bezier_state(curve)
+function calc_cub_bezier_with_state(state, incr, to_t)
   while (state.t < to_t) do
     local q0 = lerp_2d(
       state.curve.p0,
@@ -70,6 +81,41 @@ function calc_cub_bezier(curve, incr, to_t)
 
     state.t = state.t + incr
   end
+end
+
+function calc_cub_bezier(curve, incr, to_t)
+  local state = cub_bezier_calc_state(curve)
+  calc_cub_bezier_with_state(state, incr, to_t)
+  return state
+end
+
+function bezier_spline(...)
+  return {
+    curves = { ... },
+  }
+end
+
+function calc_bez_spline_state(spline)
+  return {
+    spline = spline,
+    curves = map(spline.curves, cub_bezier_calc_state),
+    t = 0,
+    curve = 0,
+  }
+end
+
+function calc_bez_spline(spline, incr, to_t)
+  local state = calc_bez_spline_state(spline)
+  local t_ex = to_t * #spline.curves
+  local full_curves = flr(t_ex)
+  local inner_t = t_ex - full_curves
+  for i = 1, full_curves, 1 do
+    calc_cub_bezier_with_state(state.curves[i], incr, 1)
+  end
+
+  if full_curves < #state.curves then
+    calc_cub_bezier_with_state(state.curves[full_curves + 1], incr, inner_t)
+  end
 
   return state
 end
@@ -79,6 +125,23 @@ end
 function draw_points(points, col)
   for _, point in ipairs(points) do
     pset(point.x, point.y, col)
+  end
+end
+
+function draw_multi_points(points_groups, col)
+  for _, group in ipairs(points_groups) do
+    draw_points(group.points, col)
+  end
+end
+
+function draw_vector_line(points_groups, col)
+  for _, group in ipairs(points_groups) do
+    for i, point in ipairs(group.points) do
+      if i < #group.points then
+        local next = group.points[i + 1]
+        line(point.x, point.y, next.x, next.y, col)
+      end
+    end
   end
 end
 
@@ -213,18 +276,26 @@ function update_cubic_bezier_demo()
 end
 
 -->8
--- b-spline demo
-bsds = {} -- b-spline demo state
+-- bezier spline demo
+bsds = {} -- bezier spline demo state
 
-function init_b_spline_demo()
+function init_bez_spline_demo()
   bsds = {
-    bez = cub_bezier(
-      point(25, 75),
-      point(25, 25),
-      point(75, 25),
-      point(75, 75)
+    spline = bezier_spline(
+      cub_bezier(
+        point(5, 20),
+        point(30, 20),
+        point(30, 50),
+        point(55, 50)
+      ),
+      cub_bezier(
+        point(55, 50),
+        point(80, 50),
+        point(80, 20),
+        point(115, 20)
+      )
     ),
-    set_increment_value = 0.001,
+    set_increment_value = 0.05,
     selected_control_point = 0,
     t_adjust_incr = 0.01,
     set_t_value = 1,
@@ -250,19 +321,19 @@ function bsds_draw_help(cur_mode)
   end
 end
 
-function draw_b_spline_demo()
+function draw_bez_spline_demo()
   rectfill(0, 0, 127, 127, 1)
-  local curve = calc_cub_bezier(bsds.bez, bsds.set_increment_value, bsds.set_t_value)
+  local spline = calc_bez_spline(bsds.spline, bsds.set_increment_value, bsds.set_t_value)
 
   bsds_draw_t_panel(bsds.set_t_value, bsds.mode == 1)
 
   bsds_draw_help(bsds.mode)
 
-  draw_points(curve.points, 10)
-  draw_control_points(bsds.bez, bsds.mode == 0 and bsds.selected_control_point or 5)
+  draw_vector_line(spline.curves, 10)
+  draw_control_points(bsds.spline.curves[1], bsds.mode == 0 and bsds.selected_control_point or 5)
 end
 
-function update_b_spline_demo()
+function update_bez_spline_demo()
   if btnp(5) then
     bsds.mode = (bsds.mode + 1) % 2
   end
@@ -275,10 +346,10 @@ function update_b_spline_demo()
       local mincr = 0.5
 
       local points = {
-        bsds.bez.p0,
-        bsds.bez.p1,
-        bsds.bez.p2,
-        bsds.bez.p3,
+        bsds.spline.curves[1].p0,
+        bsds.spline.curves[1].p1,
+        bsds.spline.curves[1].p2,
+        bsds.spline.curves[1].p3,
       }
 
       local point = points[bsds.selected_control_point + 1]
@@ -331,7 +402,7 @@ end
 -- main menu
 
 mms = {} -- main menu state
-mms_last_program = 2
+mms_last_program = 3
 
 function init_main_menu()
   mms = {
@@ -339,7 +410,7 @@ function init_main_menu()
     options = {
       "menu",
       "cubic bezier curve",
-      "b-spline (stub!)",
+      "bezier spline",
     },
   }
 end
@@ -380,19 +451,19 @@ last_update_program = -1
 init_funcs = {
   init_main_menu,
   init_cubic_bezier_demo,
-  init_b_spline_demo,
+  init_bez_spline_demo,
 }
 
 draw_funcs = {
   draw_main_menu,
   draw_cubic_bezier_demo,
-  draw_b_spline_demo,
+  draw_bez_spline_demo,
 }
 
 update_funcs = {
   update_main_menu,
   update_cubic_bezier_demo,
-  update_b_spline_demo,
+  update_bez_spline_demo,
 }
 
 function _draw()
