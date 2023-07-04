@@ -346,7 +346,12 @@ function draw_bez_spline_demo()
   bsds_draw_help(bsds.mode)
 
   draw_vector_line(spline.curves, 10)
-  draw_control_points(bsds.spline.curves[bsds.selected_curve], bsds.mode == 0 and (bsds.selected_control_point - 1) or 5)
+  if bsds.mode == 0 then
+    local curve = bsds.spline.curves[bsds.selected_curve]
+    draw_control_points(curve, bsds.selected_control_point - 1)
+    line(curve.p0.x, curve.p0.y, curve.p1.x, curve.p1.y, 6)
+    line(curve.p2.x, curve.p2.y, curve.p3.x, curve.p3.y, 6)
+  end
 end
 
 function update_bez_spline_demo()
