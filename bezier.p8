@@ -18,6 +18,26 @@ function map(array, func)
   return out
 end
 
+function count_ex(array, func)
+  local c = 0
+  for _, v in ipairs(array) do
+    if func(v) then
+      c = c + 1
+    end
+  end
+  return c
+end
+
+function some(array, func)
+  for _, v in ipairs(array) do
+    if func(v) then
+      return true
+    end
+  end
+
+  return false
+end
+
 -->8
 -- math functions
 function lerp(v0, v1, t)
@@ -26,6 +46,16 @@ end
 
 function point(x, y)
   return { x = x, y = y }
+end
+
+function contains_point(array, p)
+  return some(array, function(v)
+    return points_equal(p, v)
+  end)
+end
+
+function points_equal(p1, p2)
+  return p1.x == p2.x and p1.y == p2.y
 end
 
 function lerp_2d(p0, p1, t)
@@ -356,7 +386,8 @@ function init_bez_spline_demo()
   bsds.mode = 0
 
   if bsds.spline == nil then
-    bsds.spline = bez_spline_from_string("2, 5,20, 20,20, 20,35, 40,35,    40,35, 60,35, 60,20, 80,20")
+    -- bsds.spline = bez_spline_from_string("2, 5,20, 20,20, 20,35, 40,35,    40,35, 60,35, 60,20, 80,20")
+    bsds.spline = bez_spline_from_string("4,11.5,56.5,7.5,49,28.5,-37.5,40,6.5,40,6.5,51.5,50.5,158,47.5,100,52.5,100,52.5,42,57.5,70,82.25,45,76,45,76,20,69.75,13,78.625,9.5,63.5")
   end
 end
 
@@ -570,6 +601,8 @@ end
 
 -- lumpy circle for testing
 -- 4,11.5,56.5,7.5,49,5,6.5,40,6.5,40,6.5,75,6.5,112,22,100,52.5,100,52.5,88,83,73.5,98.25,48.5,92,48.5,92,23.5,85.75,13,78.625,9.5,63.5
+-- weird star
+-- 4,11.5,56.5,7.5,49,28.5,-37.5,40,6.5,40,6.5,51.5,50.5,158,47.5,100,52.5,100,52.5,42,57.5,70,82.25,45,76,45,76,20,69.75,13,78.625,9.5,63.5
 dp1s = {} -- drawing playground 1 state
 function init_draw_playground_1()
   if bsds.spline == nil then
@@ -582,12 +615,50 @@ function init_draw_playground_1()
   dp1s.c_y = 0
 end
 
+function is_in_bounds(p, bounds)
+  return p.x >= bounds.min_x and p.x <= bounds.max_x and p.y >= bounds.min_y and p.y <= bounds.max_y
+end
+
+function flood_fill(from_point, color, bounds)
+  local point_queue = { from_point }
+
+  while #point_queue > 0 do
+    local current_point = deli(point_queue, 1)
+
+    pset(current_point.x, current_point.y, color)
+    local neighbors = {
+      point(current_point.x - 1, current_point.y),
+      point(current_point.x + 1, current_point.y),
+      point(current_point.x, current_point.y - 1),
+      point(current_point.x, current_point.y + 1),
+    }
+
+    for _, neighbor in ipairs(neighbors) do
+      if is_in_bounds(neighbor, bounds) and pget(neighbor.x, neighbor.y) != color and (contains_point(point_queue, neighbor) == false) then
+        add(point_queue, neighbor)
+      end
+    end
+  end
+end
+
 function draw_draw_playground_1()
-  rectfill(0, 0, 127, 127, 1)
+  local screen_bounds = {
+    min_x = dp1s.c_x,
+    max_x = dp1s.c_x + 127,
+    min_y = dp1s.c_y,
+    max_y = dp1s.c_y + 127,
+  }
+
+  rectfill(screen_bounds.min_x, screen_bounds.min_y, screen_bounds.max_x, screen_bounds.max_y, 1)
   camera(dp1s.c_x, dp1s.c_y)
   local spline = calc_bez_spline(dp1s.spline, dp1s.incr, 1)
 
   draw_vector_line(spline.curves, 10)
+  local start_point = spline.curves[1].points[1]
+  local last_curve = spline.curves[#spline.curves]
+  local end_point = last_curve.points[#last_curve.points]
+  line(start_point.x, start_point.y, end_point.x, end_point.y, 10)
+  flood_fill(point(20, 20), 10, screen_bounds)
 
   print(stat(7), dp1s.c_x, dp1s.c_y, 11)
 end
