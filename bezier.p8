@@ -48,14 +48,14 @@ function point(x, y)
   return { x = x, y = y }
 end
 
+function points_equal(p1, p2)
+  return p1.x == p2.x and p1.y == p2.y
+end
+
 function contains_point(array, p)
   return some(array, function(v)
     return points_equal(p, v)
   end)
-end
-
-function points_equal(p1, p2)
-  return p1.x == p2.x and p1.y == p2.y
 end
 
 function lerp_2d(p0, p1, t)
@@ -619,7 +619,7 @@ function is_in_bounds(p, bounds)
   return p.x >= bounds.min_x and p.x <= bounds.max_x and p.y >= bounds.min_y and p.y <= bounds.max_y
 end
 
-function flood_fill(from_point, color, bounds)
+function flood_fill(from_point, color, bounds_list)
   local point_queue = { from_point }
 
   while #point_queue > 0 do
@@ -634,10 +634,78 @@ function flood_fill(from_point, color, bounds)
     }
 
     for _, neighbor in ipairs(neighbors) do
-      if is_in_bounds(neighbor, bounds) and pget(neighbor.x, neighbor.y) != color and (contains_point(point_queue, neighbor) == false) then
+      if some(bounds_list, function(bounds) return is_in_bounds(neighbor, bounds) end) and pget(neighbor.x, neighbor.y) != color and (contains_point(point_queue, neighbor) == false) then
         add(point_queue, neighbor)
       end
     end
+  end
+end
+
+function sample_sectors(points_groups, sector_size)
+  local sectors = {}
+  for _, group in ipairs(points_groups) do
+    for i, p in ipairs(group.points) do
+      if i < #group.points then
+        -- this might need work:
+        -- find the midpoing to the next point. if that is out of bounds, find the midpoint to the end of bounds
+        -- from the midpoint, point 90 degree clockwise (i.e. right-hand rule) and project a little ways out for the fill origin
+
+        local next = group.points[i + 1]
+
+        -- 0 offset
+        local unit_point = point(
+          next.x - p.x,
+          next.y - p.y
+        )
+
+        -- normalize and scale out to some px
+        local magnitude = sqrt((unit_point.x * unit_point.x) + (unit_point.y * unit_point.y))
+        unit_point.x = (unit_point.x / magnitude) * 2
+        unit_point.y = (unit_point.y / magnitude) * 2
+
+        -- rotate 90 degrees
+        local fill_point = point(
+          unit_point.y * -1,
+          unit_point.x
+        )
+
+        -- translate into place
+        local midpoint = lerp_2d(p, next, 0.5)
+
+        fill_point.x = fill_point.x + midpoint.x
+        fill_point.y = fill_point.y + midpoint.y
+
+        local sector = {
+          p = point(
+            flr(p.x / sector_size),
+            flr(p.y / sector_size)
+          ),
+          fill_point = fill_point,
+        }
+
+        if not some(sectors, function(s) return points_equal(s.p, sector.p) end) then
+          add(sectors, sector)
+        end
+      end
+    end
+  end
+
+  return sectors
+end
+
+function fill_sectors(points_groups, sector_size, color)
+  local sectors = sample_sectors(points_groups, sector_size)
+  -- cls()
+  -- stop("#: " .. #sectors, 0, 0, color)
+  local bounds_list = map(sectors, function(sector) return {
+    min_x = (sector.p.x * sector_size),
+    max_x = (sector.p.x * sector_size) + sector_size,
+    min_y = (sector.p.y * sector_size),
+    max_y = (sector.p.y * sector_size) + sector_size,
+  } end)
+
+  for _, sector in ipairs(sectors) do
+    flood_fill(sector.fill_point, color, bounds_list)
   end
 end
 
@@ -658,7 +726,8 @@ function draw_draw_playground_1()
   local last_curve = spline.curves[#spline.curves]
   local end_point = last_curve.points[#last_curve.points]
   line(start_point.x, start_point.y, end_point.x, end_point.y, 10)
-  flood_fill(point(20, 20), 10, screen_bounds)
+  flood_fill(point(20, 20), 10, { screen_bounds })
+  -- fill_sectors(spline.curves, 16, 10)
 
   print(stat(7), dp1s.c_x, dp1s.c_y, 11)
 end
