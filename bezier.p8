@@ -604,6 +604,13 @@ end
 -- weird star
 -- 4,11.5,56.5,7.5,49,28.5,-37.5,40,6.5,40,6.5,51.5,50.5,158,47.5,100,52.5,100,52.5,42,57.5,70,82.25,45,76,45,76,20,69.75,13,78.625,9.5,63.5
 dp1s = {} -- drawing playground 1 state
+
+dp1s_mode_names = {
+  "line",
+  "recursive fill",
+  "quadtree fill",
+}
+
 function init_draw_playground_1()
   if bsds.spline == nil then
     init_bez_spline_demo()
@@ -613,6 +620,8 @@ function init_draw_playground_1()
   dp1s.incr = 0.1
   dp1s.c_x = 0
   dp1s.c_y = 0
+  dp1s.mode = 1
+  dp1s.transitioned = false
 end
 
 function is_in_bounds(p, bounds)
@@ -721,15 +730,27 @@ function draw_draw_playground_1()
   camera(dp1s.c_x, dp1s.c_y)
   local spline = calc_bez_spline(dp1s.spline, dp1s.incr, 1)
 
+  print(stat(7), dp1s.c_x, dp1s.c_y, 11)
+  print(dp1s_mode_names[dp1s.mode], dp1s.c_x, dp1s.c_y + (128 - 6), 11)
+
+  if not dp1s.transitioned then
+    print("(drawing)", dp1s.c_x, dp1s.c_y + (128 - 12), 11)
+    dp1s.transitioned = true
+    return
+  end
+
   draw_vector_line(spline.curves, 10)
   local start_point = spline.curves[1].points[1]
   local last_curve = spline.curves[#spline.curves]
   local end_point = last_curve.points[#last_curve.points]
-  line(start_point.x, start_point.y, end_point.x, end_point.y, 10)
-  flood_fill(point(20, 20), 10, { screen_bounds })
-  -- fill_sectors(spline.curves, 16, 10)
 
-  print(stat(7), dp1s.c_x, dp1s.c_y, 11)
+  if dp1s.mode == 2 then
+    line(start_point.x, start_point.y, end_point.x, end_point.y, 10)
+    flood_fill(point(20, 20), 10, { screen_bounds })
+  elseif dp1s.mode == 3 then
+    line(start_point.x, start_point.y, end_point.x, end_point.y, 10)
+    fill_sectors(spline.curves, 16, 10)
+  end
 end
 
 function update_draw_playground_1()
@@ -749,6 +770,22 @@ function update_draw_playground_1()
 
   if btn(3) then
     dp1s.c_y += camera_move
+  end
+
+  if btnp(0, 1) then
+    dp1s.mode = dp1s.mode - 1
+    dp1s.transitioned = false
+  end
+
+  if btnp(1, 1) then
+    dp1s.mode = dp1s.mode + 1
+    dp1s.transitioned = false
+  end
+
+  if dp1s.mode < 1 then
+    dp1s.mode = 1
+  elseif dp1s.mode > #dp1s_mode_names then
+    dp1s.mode = #dp1s_mode_names
   end
 
   if btnp(4) then
