@@ -386,8 +386,16 @@ function init_bez_spline_demo()
   bsds.mode = 0
 
   if bsds.spline == nil then
+    -- lumpy circle for testing
+    -- 4,11.5,56.5,7.5,49,5,6.5,40,6.5,40,6.5,75,6.5,112,22,100,52.5,100,52.5,88,83,73.5,98.25,48.5,92,48.5,92,23.5,85.75,13,78.625,9.5,63.5
+    -- weird star
+    -- 4,11.5,56.5,7.5,49,28.5,-37.5,40,6.5,40,6.5,51.5,50.5,158,47.5,100,52.5,100,52.5,42,57.5,70,82.25,45,76,45,76,20,69.75,13,78.625,9.5,63.5
+    -- slope for underfill
+    -- 3,5,20,20,20,12,5.5,40,10,40,10,68,14.5,54.5,19.5,85.5,25.5,85.5,25.5,116.5,31.5,92,45.5,122.5,45
+    -- streteched version of previous
+    -- 3,-132.5,20,-101,3,-44.5,-16,5,10,5,10,54.5,36,50,-5.5,81,6,81,6,112,17.5,191,45.5,374,45
     -- bsds.spline = bez_spline_from_string("2, 5,20, 20,20, 20,35, 40,35,    40,35, 60,35, 60,20, 80,20")
-    bsds.spline = bez_spline_from_string("4,11.5,56.5,7.5,49,28.5,-37.5,40,6.5,40,6.5,51.5,50.5,158,47.5,100,52.5,100,52.5,42,57.5,70,82.25,45,76,45,76,20,69.75,13,78.625,9.5,63.5")
+    bsds.spline = bez_spline_from_string("3,-132.5,20,-101,3,-44.5,-16,5,10,5,10,54.5,36,50,-5.5,81,6,81,6,112,17.5,191,45.5,374,45")
   end
 end
 
@@ -598,17 +606,12 @@ end
 
 -->8
 -- drawing playground 1
-
--- lumpy circle for testing
--- 4,11.5,56.5,7.5,49,5,6.5,40,6.5,40,6.5,75,6.5,112,22,100,52.5,100,52.5,88,83,73.5,98.25,48.5,92,48.5,92,23.5,85.75,13,78.625,9.5,63.5
--- weird star
--- 4,11.5,56.5,7.5,49,28.5,-37.5,40,6.5,40,6.5,51.5,50.5,158,47.5,100,52.5,100,52.5,42,57.5,70,82.25,45,76,45,76,20,69.75,13,78.625,9.5,63.5
 dp1s = {} -- drawing playground 1 state
 
 dp1s_mode_names = {
   "line",
+  "under fill",
   "recursive fill",
-  "quadtree fill",
 }
 
 function init_draw_playground_1()
@@ -718,6 +721,29 @@ function fill_sectors(points_groups, sector_size, color)
   end
 end
 
+function draw_underfill(points_groups, bounds, col)
+  for _, group in ipairs(points_groups) do
+    for i, p in ipairs(group.points) do
+      if i < #group.points then
+        local next = group.points[i + 1]
+
+        -- this may lead to back-draw, but that's fine. this is what it is and the curves need to deal
+        -- some playing around suggests having a color generator could even make that a feature...
+        local rise = next.y - p.y
+        local run = next.x - p.x
+        local slope = rise / run
+
+        local drawing_point = point(p.x, p.y)
+        while drawing_point.x <= next.x do
+          rect(drawing_point.x, drawing_point.y, drawing_point.x, bounds.max_y, col)
+          drawing_point.x += 1
+          drawing_point.y += slope
+        end
+      end
+    end
+  end
+end
+
 function draw_draw_playground_1()
   local screen_bounds = {
     min_x = dp1s.c_x,
@@ -739,17 +765,19 @@ function draw_draw_playground_1()
     return
   end
 
-  draw_vector_line(spline.curves, 10)
+  if dp1s.mode == 1 or dp1s.mode == 3 then
+    draw_vector_line(spline.curves, 10)
+  end
+
   local start_point = spline.curves[1].points[1]
   local last_curve = spline.curves[#spline.curves]
   local end_point = last_curve.points[#last_curve.points]
 
   if dp1s.mode == 2 then
-    line(start_point.x, start_point.y, end_point.x, end_point.y, 10)
-    flood_fill(point(20, 20), 10, { screen_bounds })
+    draw_underfill(spline.curves, screen_bounds, 10)
   elseif dp1s.mode == 3 then
     line(start_point.x, start_point.y, end_point.x, end_point.y, 10)
-    fill_sectors(spline.curves, 16, 10)
+    flood_fill(point(20, 20), 10, { screen_bounds })
   end
 end
 
