@@ -375,28 +375,28 @@ end
 
 -->8
 -- bezier spline demo
-bsds = {} -- bezier spline demo state
+bsds = { -- bezier spline demo state
+  -- testing shapes
+  -- lumpy circle
+  -- 4,11.5,56.5,7.5,49,5,6.5,40,6.5,40,6.5,75,6.5,112,22,100,52.5,100,52.5,88,83,73.5,98.25,48.5,92,48.5,92,23.5,85.75,13,78.625,9.5,63.5
+  -- weird star
+  -- 4,11.5,56.5,7.5,49,28.5,-37.5,40,6.5,40,6.5,51.5,50.5,158,47.5,100,52.5,100,52.5,42,57.5,70,82.25,45,76,45,76,20,69.75,13,78.625,9.5,63.5
+  -- slope for underfill
+  -- 3,5,20,20,20,12,5.5,40,10,40,10,68,14.5,54.5,19.5,85.5,25.5,85.5,25.5,116.5,31.5,92,45.5,122.5,45
+  -- streteched version of previous
+  -- 3,-132.5,20,-101,3,-44.5,-16,5,10,5,10,54.5,36,50,-5.5,81,6,81,6,112,17.5,191,45.5,374,45
+  -- bsds.spline = bez_spline_from_string("2, 5,20, 20,20, 20,35, 40,35,    40,35, 60,35, 60,20, 80,20")
+  spline = bez_spline_from_string("4,11.5,56.5,7.5,49,5,6.5,40,6.5,40,6.5,75,6.5,112,22,100,52.5,100,52.5,88,83,73.5,98.25,48.5,92,48.5,92,23.5,85.75,13,78.625,9.5,63.5")
+}
 
 function init_bez_spline_demo()
+  camera(0, 0)
   bsds.set_increment_value = 0.05
   bsds.selected_control_point = 1
   bsds.selected_curve = 1
   bsds.t_adjust_incr = 0.01
   bsds.set_t_value = 1
   bsds.mode = 0
-
-  if bsds.spline == nil then
-    -- lumpy circle for testing
-    -- 4,11.5,56.5,7.5,49,5,6.5,40,6.5,40,6.5,75,6.5,112,22,100,52.5,100,52.5,88,83,73.5,98.25,48.5,92,48.5,92,23.5,85.75,13,78.625,9.5,63.5
-    -- weird star
-    -- 4,11.5,56.5,7.5,49,28.5,-37.5,40,6.5,40,6.5,51.5,50.5,158,47.5,100,52.5,100,52.5,42,57.5,70,82.25,45,76,45,76,20,69.75,13,78.625,9.5,63.5
-    -- slope for underfill
-    -- 3,5,20,20,20,12,5.5,40,10,40,10,68,14.5,54.5,19.5,85.5,25.5,85.5,25.5,116.5,31.5,92,45.5,122.5,45
-    -- streteched version of previous
-    -- 3,-132.5,20,-101,3,-44.5,-16,5,10,5,10,54.5,36,50,-5.5,81,6,81,6,112,17.5,191,45.5,374,45
-    -- bsds.spline = bez_spline_from_string("2, 5,20, 20,20, 20,35, 40,35,    40,35, 60,35, 60,20, 80,20")
-    bsds.spline = bez_spline_from_string("3,-132.5,20,-101,3,-44.5,-16,5,10,5,10,54.5,36,50,-5.5,81,6,81,6,112,17.5,191,45.5,374,45")
-  end
 end
 
 function bsds_draw_t_panel(t_val, active)
@@ -757,10 +757,10 @@ function draw_draw_playground_1()
   local spline = calc_bez_spline(dp1s.spline, dp1s.incr, 1)
 
   print(stat(7), dp1s.c_x, dp1s.c_y, 11)
-  print(dp1s_mode_names[dp1s.mode], dp1s.c_x, dp1s.c_y + (128 - 6), 11)
+  print(dp1s_mode_names[dp1s.mode], dp1s.c_x + 10, dp1s.c_y, 11)
 
   if not dp1s.transitioned then
-    print("(drawing)", dp1s.c_x, dp1s.c_y + (128 - 12), 11)
+    print("(drawing)", dp1s.c_x, dp1s.c_y + 6, 11)
     dp1s.transitioned = true
     return
   end
