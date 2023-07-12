@@ -386,7 +386,7 @@ bsds = { -- bezier spline demo state
   -- streteched version of previous
   -- 3,-132.5,20,-101,3,-44.5,-16,5,10,5,10,54.5,36,50,-5.5,81,6,81,6,112,17.5,191,45.5,374,45
   -- bsds.spline = bez_spline_from_string("2, 5,20, 20,20, 20,35, 40,35,    40,35, 60,35, 60,20, 80,20")
-  spline = bez_spline_from_string("4,11.5,56.5,7.5,49,5,6.5,40,6.5,40,6.5,75,6.5,112,22,100,52.5,100,52.5,88,83,73.5,98.25,48.5,92,48.5,92,23.5,85.75,13,78.625,9.5,63.5")
+  spline = bez_spline_from_string("4,11.5,56.5,7.5,49,28.5,-37.5,40,6.5,40,6.5,51.5,50.5,158,47.5,100,52.5,100,52.5,42,57.5,70,82.25,45,76,45,76,20,69.75,13,78.625,9.5,63.5")
 }
 
 function init_bez_spline_demo()
@@ -611,6 +611,7 @@ dp1s = {} -- drawing playground 1 state
 dp1s_mode_names = {
   "line",
   "under fill",
+  "recursive fill to sprites",
   "recursive fill",
 }
 
@@ -625,6 +626,7 @@ function init_draw_playground_1()
   dp1s.c_y = 0
   dp1s.mode = 1
   dp1s.transitioned = false
+  dp1s.rec_to_sprite_ready = false
 end
 
 function is_in_bounds(p, bounds)
@@ -760,12 +762,16 @@ function draw_draw_playground_1()
   print(dp1s_mode_names[dp1s.mode], dp1s.c_x + 10, dp1s.c_y, 11)
 
   if not dp1s.transitioned then
-    print("(drawing)", dp1s.c_x, dp1s.c_y + 6, 11)
+    if dp1s.mode == 3 then
+      print("(rendering)", dp1s.c_x, dp1s.c_y + 6, 11)
+    else
+      print("(drawing)", dp1s.c_x, dp1s.c_y + 6, 11)
+    end
     dp1s.transitioned = true
     return
   end
 
-  if dp1s.mode == 1 or dp1s.mode == 3 then
+  if dp1s.mode == 1 or dp1s.mode == 4 then
     draw_vector_line(spline.curves, 10)
   end
 
@@ -775,9 +781,43 @@ function draw_draw_playground_1()
 
   if dp1s.mode == 2 then
     draw_underfill(spline.curves, screen_bounds, 10)
-  elseif dp1s.mode == 3 then
+    return
+  end
+
+  if dp1s.mode == 4 then
     line(start_point.x, start_point.y, end_point.x, end_point.y, 10)
     flood_fill(point(20, 20), 10, { screen_bounds })
+    return
+  end
+
+  if dp1s.mode == 3 then
+    if not dp1s.rec_to_sprite_ready then
+      poke(0x5f55, 0x00) -- switch draw commands to use spritesheet
+      cls()
+      draw_vector_line(spline.curves, 10)
+      line(start_point.x, start_point.y, end_point.x, end_point.y, 10)
+      flood_fill(point(20, 20), 10, {
+        {
+          min_x = 0,
+          min_y = 0,
+          max_x = 127,
+          max_y = 127,
+        }
+      })
+
+      poke(0x5f55, 0x60) -- switch back to screen space
+
+      dp1s.rec_to_sprite_ready = true
+    end
+
+    -- draw the rendered sprites to the screen
+    for row = 1, 16, 1 do
+      for col = 1, 16, 1 do
+        spr(((row - 1) * 16) + (col - 1), col * 8, row * 8)
+      end
+    end
+
+    return
   end
 end
 
@@ -800,20 +840,30 @@ function update_draw_playground_1()
     dp1s.c_y += camera_move
   end
 
+  local changed_mode = false
+
   if btnp(0, 1) then
     dp1s.mode = dp1s.mode - 1
-    dp1s.transitioned = false
+    changed_mode = true
   end
 
   if btnp(1, 1) then
     dp1s.mode = dp1s.mode + 1
-    dp1s.transitioned = false
+    changed_mode = true
   end
 
-  if dp1s.mode < 1 then
-    dp1s.mode = 1
-  elseif dp1s.mode > #dp1s_mode_names then
-    dp1s.mode = #dp1s_mode_names
+  if changed_mode then
+    dp1s.transitioned = false
+
+    if dp1s.mode < 1 then
+      dp1s.mode = 1
+    elseif dp1s.mode > #dp1s_mode_names then
+      dp1s.mode = #dp1s_mode_names
+    end
+
+    if dp1s.mode == 4 then
+      dp1s.rec_to_sprite_ready = false
+    end
   end
 
   if btnp(4) then
