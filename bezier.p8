@@ -38,6 +38,16 @@ function some(array, func)
   return false
 end
 
+function all_t(array, func)
+  for _, v in ipairs(array) do
+    if not func(v) then
+      return false
+    end
+  end
+
+  return true
+end
+
 -->8
 -- math functions
 function lerp(v0, v1, t)
@@ -657,72 +667,137 @@ function flood_fill(from_point, color, bounds_list)
   end
 end
 
-function sample_sectors(points_groups, sector_size)
-  local sectors = {}
-  for _, group in ipairs(points_groups) do
-    for i, p in ipairs(group.points) do
-      if i < #group.points then
-        -- this might need work:
-        -- find the midpoing to the next point. if that is out of bounds, find the midpoint to the end of bounds
-        -- from the midpoint, point 90 degree clockwise (i.e. right-hand rule) and project a little ways out for the fill origin
-
-        local next = group.points[i + 1]
-
-        -- 0 offset
-        local unit_point = point(
-          next.x - p.x,
-          next.y - p.y
-        )
-
-        -- normalize and scale out to some px
-        local magnitude = sqrt((unit_point.x * unit_point.x) + (unit_point.y * unit_point.y))
-        unit_point.x = (unit_point.x / magnitude) * 2
-        unit_point.y = (unit_point.y / magnitude) * 2
-
-        -- rotate 90 degrees
-        local fill_point = point(
-          unit_point.y * -1,
-          unit_point.x
-        )
-
-        -- translate into place
-        local midpoint = lerp_2d(p, next, 0.5)
-
-        fill_point.x = fill_point.x + midpoint.x
-        fill_point.y = fill_point.y + midpoint.y
-
-        local sector = {
-          p = point(
-            flr(p.x / sector_size),
-            flr(p.y / sector_size)
-          ),
-          fill_point = fill_point,
-        }
-
-        if not some(sectors, function(s) return points_equal(s.p, sector.p) end) then
-          add(sectors, sector)
-        end
-      end
-    end
+function new_fill_tree_node(depth, end_depth)
+  if depth > end_depth then
+    return nil
   end
 
-  return sectors
+  if depth == end_depth then
+    return {
+      is_resolved = false,
+      is_filled = false,
+      is_empty = false,
+      is_leaf = true,
+      tl = nil,
+      tr = nil,
+      bl = nil,
+      br = nil,
+    }
+  end
+
+  return {
+    is_resolved = false,
+    is_filled = false,
+    is_empty = false,
+    is_leaf = false,
+    tl = new_fill_tree_node(depth + 1, end_depth),
+    tr = new_fill_tree_node(depth + 1, end_depth),
+    bl = new_fill_tree_node(depth + 1, end_depth),
+    br = new_fill_tree_node(depth + 1, end_depth),
+  }
 end
 
-function fill_sectors(points_groups, sector_size, color)
-  local sectors = sample_sectors(points_groups, sector_size)
-  -- cls()
-  -- stop("#: " .. #sectors, 0, 0, color)
-  local bounds_list = map(sectors, function(sector) return {
-    min_x = (sector.p.x * sector_size),
-    max_x = (sector.p.x * sector_size) + sector_size,
-    min_y = (sector.p.y * sector_size),
-    max_y = (sector.p.y * sector_size) + sector_size,
-  } end)
-
-  for _, sector in ipairs(sectors) do
-    flood_fill(sector.fill_point, color, bounds_list)
+function new_fill_tree(terminal_resolution)
+  -- we don't have a log2 function to use here :(
+  local depth = 1
+  local resolution = 128
+  while resolution > terminal_resolution do
+    depth = depth + 1
+    resolution = resolution / 2
   end
+
+  return new_fill_tree_node(1, depth)
+end
+
+function visit_fill_tree(node, depth, p, visitor)
+  if not node.is_leaf then
+    local tl_p = point(p.x, p.y)
+    local loc_size = 128 / (2 ^ depth)
+    local tr_p = point(p.x + loc_size, p.y)
+    local bl_p = point(p.x, p.y + loc_size)
+    local br_p = point(p.x + loc_size, p.y + loc_size)
+
+    visit_fill_tree(node.tl, depth + 1, tl_p, visitor)
+    visit_fill_tree(node.tr, depth + 1, tr_p, visitor)
+    visit_fill_tree(node.bl, depth + 1, bl_p, visitor)
+    visit_fill_tree(node.br, depth + 1, br_p, visitor)
+  end
+
+  visitor(node, p, depth)
+end
+
+function screen_space_to_fill_tree(transparent_color, sprite_size)
+  local fill_tree = new_fill_tree(sprite_size)
+
+  visit_fill_tree(fill_tree, 1, point(0, 0), function(node, p)
+    if node.is_leaf then
+      -- leaf nodes check pixels
+
+      local found_transparent = false
+      local found_non_transparent = false
+
+      for x = p.x, p.x + sprite_size, 1 do
+        for y = p.y, p.y + sprite_size, 1 do
+          local color = pget(x, y)
+          if color == transparent_color then
+            found_transparent = true
+          else
+            found_non_transparent = true
+          end
+        end
+      end
+
+      if found_non_transparent and not found_transparent then
+        node.is_filled = true
+      elseif found_transparent and not found_non_transparent then
+        node.is_empty = true
+      end
+    else
+      -- nodes higher up just want to know who is filled
+      node.is_filled = all_t({ node.tl, node.tr, node.bl, node.br }, function(child)
+        return child.is_filled
+      end)
+
+      node.is_empty = all_t({ node.tl, node.tr, node.bl, node.br }, function(child)
+        return child.is_empty
+      end)
+    end
+
+    node.is_resolved = true
+  end)
+
+  return fill_tree
+end
+
+function get_sprite_offset(index, row, sprite_size, sheet_start)
+  local spr_row = flr(index / (128 / sprite_size))
+  local spr_col = index % (128 / sprite_size)
+  local screen_row = (spr_row * sprite_size * 64) + (row * 64)
+  return (screen_row + (spr_col * (sprite_size / 2))) + sheet_start
+end
+
+function get_point_offset(p)
+  return (p.y * 64) + (p.x / 2)
+end
+
+function extract_fill_tree_to_sprites(fill_tree, from, to, sprite_size)
+  local sprite_index = 0
+
+  visit_fill_tree(fill_tree, 1, point(0, 0), function(node, p, depth)
+    if not node.is_leaf or node.is_empty or node.is_filled then
+      return
+    end
+
+    for row = 0, sprite_size - 1, 1 do
+      local source_offset = get_point_offset(point(p.x, p.y + row))
+      local dest_offset = get_sprite_offset(sprite_index, row, sprite_size, to)
+
+      memcpy(dest_offset, source_offset, sprite_size / 2) -- / 2 because 1 byte is 2px
+    end
+
+    node.sprite_index = sprite_index
+    sprite_index = sprite_index + 1
+  end)
 end
 
 function draw_underfill(points_groups, bounds, col)
@@ -794,6 +869,7 @@ function draw_draw_playground_1()
 
   if dp1s.mode == 3 then
     if not dp1s.rec_to_sprite_ready then
+      -- First, render the spline to the spritesheet
       poke(0x5f55, 0x00) -- switch draw commands to use spritesheet
       cls()
       draw_vector_line(spline.curves, 10)
@@ -807,17 +883,36 @@ function draw_draw_playground_1()
         }
       })
 
+      -- extract partially-filled cells to sprites in aux memory
+      dp1s.fill_tree = screen_space_to_fill_tree(0, 8)
+      extract_fill_tree_to_sprites(dp1s.fill_tree, 0x0000, 0x8000, 8)
+
+      -- since we drew the shape into sprite memory, we used extended ram to store the generated sprites
+      -- now we have to copy those sprites back into the actual sprite sheet
+      cls()
+      memcpy(0x0000, 0x8000, 8192)
+
+      -- just testing; copy sprite sheet to extended ram and back
+      -- memcpy(0x8000, 0x0000, 8192)
+      -- cls()
+      -- memcpy(0x0000, 0x8000, 8192)
+
+
       poke(0x5f55, 0x60) -- switch back to screen space
 
       dp1s.rec_to_sprite_ready = true
     end
 
     -- draw the rendered sprites to the screen
-    for row = 1, 16, 1 do
-      for col = 1, 16, 1 do
-        spr(((row - 1) * 16) + (col - 1), col * 8, row * 8)
+
+    visit_fill_tree(dp1s.fill_tree, 1, point(0, 0), function(node, p)
+      if node.is_leaf then
+        if node.sprite_index != nil then
+          spr(node.sprite_index, p.x, p.y)
+          -- circfill(p.x + 4, p.y + 4, 4, 10)
+        end
       end
-    end
+    end)
 
     return
   end
