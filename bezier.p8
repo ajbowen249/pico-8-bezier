@@ -709,27 +709,50 @@ function new_fill_tree(terminal_resolution)
   return new_fill_tree_node(1, depth)
 end
 
-function visit_fill_tree(node, depth, p, visitor)
-  if not node.is_leaf then
-    local tl_p = point(p.x, p.y)
-    local loc_size = 128 / (2 ^ depth)
-    local tr_p = point(p.x + loc_size, p.y)
-    local bl_p = point(p.x, p.y + loc_size)
-    local br_p = point(p.x + loc_size, p.y + loc_size)
+function get_quadtree_local_size(depth)
+  return 128 / (2 ^ (depth - 1))
+end
 
-    visit_fill_tree(node.tl, depth + 1, tl_p, visitor)
-    visit_fill_tree(node.tr, depth + 1, tr_p, visitor)
-    visit_fill_tree(node.bl, depth + 1, bl_p, visitor)
-    visit_fill_tree(node.br, depth + 1, br_p, visitor)
+function get_quadtree_child_points(depth, p)
+  local loc_size = get_quadtree_local_size(depth)
+
+  return {
+    tl_p = point(p.x, p.y),
+    -- dividing loc_size by 2 because it's the next point down.
+    tr_p = point(p.x + (loc_size / 2), p.y),
+    bl_p = point(p.x, p.y + (loc_size / 2)),
+    br_p = point(p.x + (loc_size / 2), p.y + (loc_size / 2)),
+  }
+end
+
+function ascend_fill_tree(node, depth, p, visitor)
+  if not node.is_leaf then
+    local points = get_quadtree_child_points(depth, p)
+
+    ascend_fill_tree(node.tl, depth + 1, points.tl_p, visitor)
+    ascend_fill_tree(node.tr, depth + 1, points.tr_p, visitor)
+    ascend_fill_tree(node.bl, depth + 1, points.bl_p, visitor)
+    ascend_fill_tree(node.br, depth + 1, points.br_p, visitor)
   end
 
   visitor(node, p, depth)
 end
 
+function descend_fill_tree(node, depth, p, visitor)
+  if visitor(node, p, depth) and not node.is_leaf then
+    local points = get_quadtree_child_points(depth, p)
+
+    descend_fill_tree(node.tl, depth + 1, points.tl_p, visitor)
+    descend_fill_tree(node.tr, depth + 1, points.tr_p, visitor)
+    descend_fill_tree(node.bl, depth + 1, points.bl_p, visitor)
+    descend_fill_tree(node.br, depth + 1, points.br_p, visitor)
+  end
+end
+
 function screen_space_to_fill_tree(transparent_color, sprite_size)
   local fill_tree = new_fill_tree(sprite_size)
 
-  visit_fill_tree(fill_tree, 1, point(0, 0), function(node, p)
+  ascend_fill_tree(fill_tree, 1, point(0, 0), function(node, p)
     if node.is_leaf then
       -- leaf nodes check pixels
 
@@ -783,7 +806,7 @@ end
 function extract_fill_tree_to_sprites(fill_tree, from, to, sprite_size)
   local sprite_index = 0
 
-  visit_fill_tree(fill_tree, 1, point(0, 0), function(node, p, depth)
+  ascend_fill_tree(fill_tree, 1, point(0, 0), function(node, p, depth)
     if not node.is_leaf or node.is_empty or node.is_filled then
       return
     end
@@ -905,13 +928,34 @@ function draw_draw_playground_1()
 
     -- draw the rendered sprites to the screen
 
-    visit_fill_tree(dp1s.fill_tree, 1, point(0, 0), function(node, p)
-      if node.is_leaf then
+    local square_color = 0
+    function next_square_color()
+      square_color = square_color + 1
+      if square_color == 10 then
+        square_color = square_color + 1
+      end
+
+      square_color = square_color % 16
+
+      return square_color
+    end
+
+    descend_fill_tree(dp1s.fill_tree, 1, point(0, 0), function(node, p, depth)
+      if node.is_empty then
+        return false
+      elseif node.is_filled then
+        local loc_size = get_quadtree_local_size(depth)
+        rectfill(p.x, p.y, p.x + loc_size, p.y + loc_size, next_square_color())
+
+        return false
+      elseif node.is_leaf then
         if node.sprite_index != nil then
           spr(node.sprite_index, p.x, p.y)
-          -- circfill(p.x + 4, p.y + 4, 4, 10)
         end
+        return false
       end
+
+      return true
     end)
 
     return
